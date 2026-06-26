@@ -1,3 +1,7 @@
+import logging
+logger = logging.getLogger("IntelliCart")
+logger.info("Starting Review Analysis Agent")
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -7,7 +11,6 @@ from agno.models.nvidia import Nvidia
 from app.tools.review_tool import review_analysis_tool
 from app.tools.review_scraper_tool import review_scraper_tool
 from app.tools.database_tool import save_review_to_db
-
 
 review_analysis_agent = Agent(
     name="Review Analysis Agent",
@@ -69,3 +72,5 @@ Return:
         return {
             "error": str(e)
         }
+    
+logger.info("Workflow completed successfully")

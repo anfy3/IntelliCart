@@ -3,6 +3,8 @@ from fastapi import FastAPI
 from app.database import engine, Base
 import app.models
 
+from app.telemetry import setup_telemetry
+
 from app.routes import (
     product_routes,
     review_routes,
@@ -21,6 +23,8 @@ app = FastAPI(
     description="Agentic AI Shopping Assistant Backend",
     version="1.0.0"
 )
+
+setup_telemetry(app)
 
 Base.metadata.create_all(bind=engine)
 

@@ -1,9 +1,14 @@
+import logging
+
 from app.tools.memory_tool import (
     get_or_create_session,
     save_search_to_db,
     save_conversation_to_db,
     update_user_preferences
 )
+
+logger = logging.getLogger("IntelliCart")
+logger.setLevel(logging.INFO)
 
 
 def extract_preferences(user_message: str):
@@ -44,25 +49,41 @@ def extract_preferences(user_message: str):
 
 
 def run_memory_agent(db, session_id: str, user_message: str, bot_response=None):
-    session = get_or_create_session(db, session_id)
+    try:
+        logger.info("Starting Memory Agent")
 
-    preferences = extract_preferences(user_message)
+        session = get_or_create_session(db, session_id)
 
-    update_user_preferences(db, session, preferences)
+        preferences = extract_preferences(user_message)
 
-    save_search_to_db(db, session, user_message)
+        update_user_preferences(db, session, preferences)
 
-    if bot_response is not None:
-        save_conversation_to_db(
-            db=db,
-            session=session,
-            user_message=user_message,
-            bot_response=str(bot_response)
-        )
+        save_search_to_db(db, session, user_message)
 
-    return {
-        "session_id": session.id,
-        "session_code": session.session_code,
-        "preferences": preferences,
-        "message": "Memory saved to PostgreSQL"
-    }
+        if bot_response is not None:
+            save_conversation_to_db(
+                db=db,
+                session=session,
+                user_message=user_message,
+                bot_response=str(bot_response)
+            )
+
+        logger.info("Memory Agent completed successfully")
+
+        return {
+            "session_id": session.id,
+            "session_code": session.session_code,
+            "preferences": preferences,
+            "message": "Memory saved to PostgreSQL"
+        }
+
+    except Exception as e:
+        if db:
+            db.rollback()
+
+        logger.error(f"Memory Agent failed: {str(e)}")
+
+        return {
+            "error": str(e),
+            "message": "Memory save failed, database transaction rolled back."
+        }

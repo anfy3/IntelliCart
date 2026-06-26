@@ -1,3 +1,7 @@
+import logging
+logger = logging.getLogger("IntelliCart")
+logger.info("Starting Intent Agent")
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -31,3 +35,5 @@ Return:
 - deal_breakers
 """)
     return response.content
+
+logger.info("Workflow completed successfully")

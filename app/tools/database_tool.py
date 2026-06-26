@@ -1,10 +1,33 @@
 from app.models import Product, Review, Recommendation
 
 
+def clean_price(price):
+    if price is None:
+        return None
+
+    if isinstance(price, (int, float)):
+        return float(price)
+
+    if isinstance(price, str):
+        price = (
+            price.replace("₹", "")
+            .replace(",", "")
+            .strip()
+        )
+
+        try:
+            return float(price)
+        except:
+            return None
+
+    return None
+
+
 def save_products_to_db(db, products: list):
     saved_products = []
 
     for item in products:
+
         existing_product = db.query(Product).filter(
             Product.name == item.get("name")
         ).first()
@@ -12,12 +35,12 @@ def save_products_to_db(db, products: list):
         if existing_product:
             saved_products.append(existing_product)
             continue
-        
+
         product = Product(
             name=item.get("name"),
             category=item.get("category"),
             brand=item.get("brand"),
-            price=item.get("price"),
+            price=clean_price(item.get("price")),
             rating=item.get("rating"),
             specs=item.get("specs"),
             source_url=item.get("source_url"),
@@ -27,12 +50,18 @@ def save_products_to_db(db, products: list):
         db.add(product)
         db.commit()
         db.refresh(product)
+
         saved_products.append(product)
 
     return saved_products
 
 
-def save_review_to_db(db, product_id: int, review_summary: str, sentiment: str = "Positive"):
+def save_review_to_db(
+    db,
+    product_id: int,
+    review_summary: str,
+    sentiment: str = "Positive"
+):
     review = Review(
         product_id=product_id,
         review_text=review_summary,
@@ -48,7 +77,12 @@ def save_review_to_db(db, product_id: int, review_summary: str, sentiment: str =
     return review
 
 
-def save_recommendation_to_db(db, product_id: int, reason: str, confidence_score: float):
+def save_recommendation_to_db(
+    db,
+    product_id: int,
+    reason: str,
+    confidence_score: float
+):
     recommendation = Recommendation(
         product_id=product_id,
         reason=reason,
@@ -60,6 +94,7 @@ def save_recommendation_to_db(db, product_id: int, reason: str, confidence_score
     db.refresh(recommendation)
 
     return recommendation
+
 
 def save_recommendation_output(
     db,

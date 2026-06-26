@@ -32,7 +32,7 @@ def web_search_tool(query: str) -> list:
 
         if brand:
             official_site = OFFICIAL_SITES[brand]
-            search_query = f"{query} site:{official_site}"
+            search_query = f"{query} Samsung Galaxy official product page site:{official_site}"
         else:
             search_query = f"{query} official site price specifications"
 

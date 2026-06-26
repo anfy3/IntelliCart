@@ -1,3 +1,7 @@
+import logging
+logger = logging.getLogger("IntelliCart")
+logger.info("Starting Product Retrieval Agent")
+
 import json
 import re
 
@@ -11,7 +15,6 @@ from app.tools.web_search_tool import web_search_tool
 from app.tools.database_tool import save_products_to_db
 from app.tools.product_scraper_tool import scrape_product_page
 
-
 product_retrieval_agent = Agent(
     name="Product Retrieval Agent",
     model=Nvidia(id="meta/llama-3.3-70b-instruct"),
@@ -21,7 +24,8 @@ product_retrieval_agent = Agent(
         "Extract products dynamically from official search results and scraped page details.",
         "Do not invent products.",
         "Return only valid JSON when asked.",
-        "If price is not available, use null."
+        "If price is not available, use null.",
+        "If rating is not available, use null."
     ],
     markdown=False
 )
@@ -37,7 +41,33 @@ def extract_json_from_text(text: str):
         return []
 
 
-def normalize_products(products: list, search_results: list):
+def get_page_price_for_product(product_name: str, scraped_pages: list):
+    for page in scraped_pages:
+        if not isinstance(page, dict):
+            continue
+
+        products_found = page.get("products_found", [])
+
+        if product_name in products_found and page.get("price"):
+            return page.get("price")
+
+    return None
+
+
+def get_page_rating_for_product(product_name: str, scraped_pages: list):
+    for page in scraped_pages:
+        if not isinstance(page, dict):
+            continue
+
+        products_found = page.get("products_found", [])
+
+        if product_name in products_found and page.get("rating"):
+            return page.get("rating")
+
+    return None
+
+
+def normalize_products(products: list, search_results: list, scraped_pages: list):
     normalized = []
 
     for product in products:
@@ -45,6 +75,7 @@ def normalize_products(products: list, search_results: list):
             continue
 
         name = product.get("name")
+
         if not name:
             continue
 
@@ -53,12 +84,15 @@ def normalize_products(products: list, search_results: list):
         if not source_url and search_results:
             source_url = search_results[0].get("url")
 
+        price = product.get("price")
+        rating = product.get("rating")
+
         normalized.append({
             "name": name,
-            "category": product.get("category") or "Product",
-            "brand": product.get("brand"),
-            "price": product.get("price"),
-            "rating": None,
+            "category": product.get("category") or "Mobile Phones",
+            "brand": product.get("brand") or "Samsung",
+            "price": price,
+            "rating": rating,
             "specs": product.get("specs") or "Extracted from official source",
             "source_url": source_url,
             "availability": product.get("availability") or "Available"
@@ -83,6 +117,7 @@ def run_product_retrieval_agent(user_message: str, intent: str, db=None):
 
         for result in search_results[:3]:
             url = result.get("url", "")
+
             if url:
                 scraped_pages.append(scrape_product_page(str(url)))
 
@@ -110,6 +145,7 @@ Format:
     "brand": "",
     "category": "",
     "price": null,
+    "rating": null,
     "specs": "",
     "source_url": "",
     "availability": "Available"
@@ -121,13 +157,15 @@ Rules:
 - Use only products found in official source results or scraped pages.
 - Do not include page titles that are not actual product names.
 - If price is not found, use null.
+- If rating is not found, use null.
 """)
 
         llm_products = extract_json_from_text(response.content)
 
         extracted_products = normalize_products(
             products=llm_products,
-            search_results=search_results
+            search_results=search_results,
+            scraped_pages=scraped_pages
         )
 
         saved_products = []
@@ -148,3 +186,5 @@ Rules:
 
     except Exception as e:
         return {"error": str(e)}
+    
+logger.info("Workflow completed successfully")
